@@ -7,6 +7,9 @@ You can do that through their DevTools API; you can request a capture and it ret
 
 This is very much a WIP and the API will change.
 
+# Dependencies
+ofxPoco, [ofxExternalProcess](http://github.com/armadillu/ofxExternalProcess), [ofxLibwebsockets](https://github.com/robotconscience/ofxLibwebsockets.git).
+
 # License
 
 ```ofxChrome``` is made available under the [MIT](http://opensource.org/licenses/MIT) license.  
