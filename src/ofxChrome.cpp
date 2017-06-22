@@ -26,8 +26,9 @@ ofxChrome::~ofxChrome(){
 	ws.close();
 }
 
-void ofxChrome::setup(string chromeBinaryPath, string chromeRemoteDebugIP, int chromeRemoteDebugPort){
+void ofxChrome::setup(string chromeBinaryPath, string chromeRemoteDebugIP, int chromeRemoteDebugPort, bool headless){
 
+	this->headlessMode = headless;
 	this->chromeBinaryPath = chromeBinaryPath;
 	this->chromeRemoteDebugIP = chromeRemoteDebugIP;
 	this->chromeRemoteDebugPort = chromeRemoteDebugPort;
@@ -35,7 +36,6 @@ void ofxChrome::setup(string chromeBinaryPath, string chromeRemoteDebugIP, int c
 	if(chromeBinaryPath.size()){
 		bool ok = launchChrome();
 		state = LAUNCHING_CHROME;
-
 	}else{
 		state = CONNECTING_TO_WS;
 		openWebSocket();
@@ -49,11 +49,21 @@ bool ofxChrome::launchChrome(){
 	vector<string> args = {
 		"--remote-debugging-port=" + ofToString(chromeRemoteDebugPort),
 		"--disable-gpu",
-		"--headless",
 		"--no-first-run",
-		"about:blank"
+		"--enable-devtools-experiments",
+		"--enable-experimental-web-platform-features",
+		"--window-size=640,480", //TODO!
+		"--disable-overlay-scrollbar",
+		"--disable-smooth-scrolling",
+		"--disable-threaded-scrolling",
+		"--hide-scrollbars",
+		"--default-background-color=0",
+		"--profile-directory=" + ofGetTimestampString(), //start new session every time
+		"about:blank"		
 	};
-
+	if(headlessMode){
+		args.insert(args.begin(), "--headless");
+	}
 
 	chromeProcess.setLivePipe(ofxExternalProcess::IGNORE_OUTPUT);
 	chromeProcess.setup(".", chromeBinaryPath, args);
@@ -83,6 +93,7 @@ void ofxChrome::openWebSocket(){
 		ofHttpResponse res = ofLoadURL(url);
 		if(res.status == 200){
 			jsonStr = res.data.getData();
+			ofLogNotice() << jsonStr;
 
 			Json::Reader reader;
 			Json::Value json;
@@ -108,11 +119,11 @@ void ofxChrome::openWebSocket(){
 			}
 
 		}else{
+			ofLogError("ofxChrome") << "Can't connect to Chrome Debugger...";
 			ofSleepMillis(250);
 		}
 		numTry++;
 	}
-
 
 	if(ok){
 		options.host = chromeAddress;
@@ -143,7 +154,7 @@ void ofxChrome::onProcessEnded(ofxExternalProcess::Result & res){
 void ofxChrome::update(float dt){
 
 	time += dt;
-	if(state == LAUNCHING_CHROME){
+	if(state == LAUNCHING_CHROME && chromeBinaryPath != ""){
 		if (time > 1.5){
 			openWebSocket();
 		}
@@ -153,7 +164,7 @@ void ofxChrome::update(float dt){
 
 
 bool ofxChrome::navigateToPage(string url, int & requestID){
-	ofLogNotice("ofxChrome") << "loading url: " << url;
+	ofLogNotice("ofxChrome") << "loading url: " << url << " ID: " << msgID;
 	string navigateUrlMsg = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Page.navigate\",\"params\":{\"url\":\"" + url + "\"}}";
 	requestID = msgID;
 	ws.send(navigateUrlMsg); msgID++;
@@ -161,40 +172,77 @@ bool ofxChrome::navigateToPage(string url, int & requestID){
 
 
 bool ofxChrome::requestScreenshot(int & requestID){
-	ofLogNotice("ofxChrome") << "Request Screenshot: ";
+	ofLogNotice("ofxChrome") << "Request Screenshot: " << " ID: " << msgID;
 	string saveScreenshotMsg = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Page.captureScreenshot\",\"params\":{}}";
 	pendingPngDataIDs.push_back(msgID);
 	requestID = msgID;
 	ws.send(saveScreenshotMsg); msgID++;
 }
 
+bool ofxChrome::setWindowSize(int w, int h){
+	ofLogNotice("ofxChrome") << "SetWindowSize: " << w << " x " << h << " ID: " << msgID;
+	//Browser.getWindowForTarget
+	//Browser.setWindowBounds
+
+	string size = "\"width\":" + ofToString(w) + ",\"height\":" + ofToString(h);
+	//string command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Browser.setWindowBounds\",\"params\":{\"windowID\":0,\"bounds\":{\"width\":" + ofToString(w) + "}}}";
+	string command;
+
+	command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Emulation.setVisibleSize\",\"params\":{" + size + "}}";
+	ws.send(command); msgID++;
+
+	command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Emulation.setDeviceMetricsOverride\",\"params\":{" + size + ",\"deviceScaleFactor\":1.0,\"mobile\":true,\"fitWindow\":true}}";
+	ws.send(command); msgID++;
+}
+
+
+bool ofxChrome::setTransparentBackground(bool trans){
+	ofLogNotice("ofxChrome") << "setTransparentBackground: " << trans;
+	string saveScreenshotMsg = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Page.setDocumentContent\",\"params\":{\"r\":255,\"g\":0,\"b\":0,\"a\":255}}";
+	ws.send(saveScreenshotMsg); msgID++;
+}
+
+void ofxChrome::setPageNotifications(bool enabled){
+
+	ofLogNotice("ofxChrome") << "setPageNotifications: " << enabled << " ID: " << msgID;
+	string saveScreenshotMsg = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Page.enable\"}";
+	ws.send(saveScreenshotMsg); msgID++;
+
+}
+
+void ofxChrome::loadHTML(const string & html, int & requestID){
+	string saveScreenshotMsg = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Emulation.setDefaultBackgroundColor\",\"params\":{\"color\":{\"r\":255,\"g\":0,\"b\":0,\"a\":255}}}";
+	ws.send(saveScreenshotMsg); msgID++;
+}
 
 void ofxChrome::draw(int x, int y){
 	ofDrawBitmapStringHighlight(chromeProcess.getSmartOutput(), x, y);
 }
 
 void ofxChrome::onConnect( ofxLibwebsockets::Event& args ){
-	ofLogNotice("ofxChrome") << "ws on connected";
+	ofLogNotice("ofxChrome") << "ofxLibwebsockets on connected";
 }
 
 
 void ofxChrome::onOpen( ofxLibwebsockets::Event& args ){
-	ofLogNotice("ofxChrome") << "ws on open";
+	ofLogNotice("ofxChrome") << "ofxLibwebsockets on open";
+	//setTransparentBackground(true);
+	setPageNotifications(true); //enable page notifications so we get events for loaded webpages
 }
 
 
 void ofxChrome::onClose( ofxLibwebsockets::Event& args ){
-	ofLogNotice("ofxChrome") << "ws on close";
+	ofLogNotice("ofxChrome") << "ofxLibwebsockets on close";
 }
 
 
 void ofxChrome::onIdle( ofxLibwebsockets::Event& args ){
-	ofLogNotice("ofxChrome") << "ws on idle";
+	//ofLogNotice("ofxChrome") << "ofxLibwebsockets on idle";
 }
 
 
 void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
-	ofLogNotice("ofxChrome") << "ws got message " << args.message;
+	ofLogNotice("ofxChrome") << "ofxLibwebsockets got message: " << args.message.substr(0, MIN(100,args.message.size()) );
 
 	Json::Reader reader;
 	Json::Value json;
@@ -222,5 +270,5 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 
 
 void ofxChrome::onBroadcast( ofxLibwebsockets::Event& args ){
-	ofLogNotice("ofxChrome") << "ws got broadcast " << args.message;
+	ofLogNotice("ofxChrome") << "ofxLibwebsockets got broadcast " << args.message;
 }

@@ -21,14 +21,17 @@ public:
 
 	//if "chromeBinaryPath" is not empty, it will launch chrome for you as an external process
 	//and keep control of it (ie watchdog, etc)
-	void setup(string chromeBinaryPath, string chromeRemoteDebugIP, int chromeRemoteDebugPort);
+	void setup(string chromeBinaryPath, string chromeRemoteDebugIP, int chromeRemoteDebugPort, bool headless);
 
 	void update(float dt);
 	void draw(int x, int y);
 
 	bool navigateToPage(string url, int & requestID);
-
 	bool requestScreenshot(int & requestID);
+	bool setWindowSize(int w, int h);
+	bool setTransparentBackground(bool trans);
+	void loadHTML(const string & html, int & requestID);
+	void setPageNotifications(bool enabled);
 
 	// websocket methods
 	void onConnect( ofxLibwebsockets::Event& args );
@@ -59,6 +62,7 @@ protected:
 	string chromeBinaryPath;
 	string chromeRemoteDebugIP;
 	int chromeRemoteDebugPort;
+	bool headlessMode;
 
 	ofxExternalProcess chromeProcess;
 	void onProcessEnded(ofxExternalProcess::Result & res);
@@ -67,5 +71,13 @@ protected:
 	void openWebSocket();
 
 	float time = 0;
+
+	struct ChromeCommand{
+		int ID;
+		string jsonCommand;
+		bool needsResponse;
+	};
+
+	vector<ChromeCommand> commandQueue;
 };
 
