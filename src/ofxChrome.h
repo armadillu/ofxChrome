@@ -10,7 +10,9 @@
 #include "ofMain.h"
 #include "ofxExternalProcess.h"
 #include "ofxLibwebsockets.h"
-
+#include "AsyncHandler.h"
+#include <mutex>
+#include <condition_variable>
 
 class ofxChrome{
 
@@ -26,8 +28,7 @@ public:
 	void update(float dt);
 	void draw(int x, int y);
 
-	bool navigateToPage(string url, int & requestID);
-	bool requestScreenshot(int & requestID);
+	bool loadPage(string url, int & requestID);
 	bool setWindowSize(int w, int h);
 	bool setTransparentBackground(bool trans);
 	void loadHTML(const string & html, int & requestID);
@@ -41,6 +42,17 @@ public:
 	void onMessage( ofxLibwebsockets::Event& args );
 	void onBroadcast( ofxLibwebsockets::Event& args );
 
+
+	struct PagePixels{
+		ofPixels pixels;
+		ofxChrome * who;
+	};
+
+	ofFastEvent<ofxChrome> eventChromeSetupFailed; 	//
+	ofFastEvent<ofxChrome> eventChromeReady; 		//
+	ofFastEvent<PagePixels> eventPixelsRead; 		//
+
+
 protected:
 
 	enum State{
@@ -51,12 +63,27 @@ protected:
 		FAILED_TO_START_CHROME
 	};
 
+	enum TransactionType{
+		LOAD_PAGE,
+	};
+
+	enum LoadPageStatus{
+		SETTING_UP,
+		LOADING_PAGE,
+		REQUESTING_DOM,
+		REQUESTING_BODY,
+		QUERYING_FRAME_SIZE,
+		SETTING_WINDOW_SIZE,
+		FORCE_VIEWPORT,
+		GET_PIXEL_DATA,
+		DONE
+	};
+
 	State state = UNINITED;
 
 	ofxLibwebsockets::Client ws;
 
 	int msgID = 1; //to keep track of commands sent to chrome
-	vector<int> pendingPngDataIDs;
 
 	//chrome contact info
 	string chromeBinaryPath;
@@ -70,14 +97,47 @@ protected:
 	bool launchChrome();
 	void openWebSocket();
 
-	float time = 0;
+	float time;
 
-	struct ChromeCommand{
-		int ID;
-		string jsonCommand;
-		bool needsResponse;
+	struct AsyncInput{
+		string url;
 	};
 
-	vector<ChromeCommand> commandQueue;
+	struct AsyncOutput{
+		ofPixels pixels;
+	};
+
+	struct LoadPageInfo{
+		LoadPageStatus state;
+		int numFramesLoading;
+		int numFramesLoaded;
+	};
+
+	struct Transaction{
+
+		int ID;
+		ofxLibwebsockets::Client * websocket;
+		TransactionType type;
+		LoadPageInfo loadingInfo; //only applies to LOAD_PAGE type
+
+		std::mutex mutex;
+		std::condition_variable semaphore;
+
+		AsyncHandler<AsyncInput, AsyncOutput> async;
+		bool readyToDelete;
+
+		int DomRootNodeID;
+		int bodyNodeID;
+		ofVec2f bodySize;
+		ofPixels pixels;
+
+		Transaction(){readyToDelete = true; DomRootNodeID = bodyNodeID = -1;}
+	};
+
+	Transaction* currentTransaction = nullptr;
+
+	ofVec2f browserSize;
+
+	//vector<AsyncHandler<AsyncInput, AsyncOutput>*> activeAsyncs;
 };
 
