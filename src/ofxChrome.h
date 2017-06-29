@@ -34,15 +34,6 @@ public:
 	void loadHTML(const string & html, int & requestID);
 	void setPageNotifications(bool enabled);
 
-	// websocket methods
-	void onConnect( ofxLibwebsockets::Event& args );
-	void onOpen( ofxLibwebsockets::Event& args );
-	void onClose( ofxLibwebsockets::Event& args );
-	void onIdle( ofxLibwebsockets::Event& args );
-	void onMessage( ofxLibwebsockets::Event& args );
-	void onBroadcast( ofxLibwebsockets::Event& args );
-
-
 	struct PagePixels{
 		ofPixels pixels;
 		ofxChrome * who;
@@ -51,6 +42,14 @@ public:
 	ofFastEvent<ofxChrome> eventChromeSetupFailed; 	//
 	ofFastEvent<ofxChrome> eventChromeReady; 		//
 	ofFastEvent<PagePixels> eventPixelsRead; 		//
+
+	// websocket callback methods - dont call directly!
+	void onConnect( ofxLibwebsockets::Event& args );
+	void onOpen( ofxLibwebsockets::Event& args );
+	void onClose( ofxLibwebsockets::Event& args );
+	void onIdle( ofxLibwebsockets::Event& args );
+	void onMessage( ofxLibwebsockets::Event& args );
+	void onBroadcast( ofxLibwebsockets::Event& args );
 
 
 protected:
@@ -101,6 +100,7 @@ protected:
 
 	struct AsyncInput{
 		string url;
+		ofVec2f browserWinSize;
 	};
 
 	struct AsyncOutput{
@@ -111,6 +111,8 @@ protected:
 		LoadPageStatus state;
 		int numFramesLoading;
 		int numFramesLoaded;
+		bool loadEventFired;
+		LoadPageInfo(){ numFramesLoading = numFramesLoaded = 0; loadEventFired = false;}
 	};
 
 	struct Transaction{
@@ -136,7 +138,7 @@ protected:
 
 	Transaction* currentTransaction = nullptr;
 
-	ofVec2f browserSize;
+	ofVec2f browserWinSize = ofVec2f(1280, 720);
 
 	//vector<AsyncHandler<AsyncInput, AsyncOutput>*> activeAsyncs;
 };
