@@ -31,7 +31,7 @@ public:
 	bool loadPage(string url, bool fullPage = false); //if fullPage==true, it will return the whole page height vs only the only visible part that would fit in the browser window
 	void loadHTML(const string & html, bool fullPage = false);
 
-	//bool setTransparentBackground(bool trans);
+	//bool setTransparentBackground(bool trans); //TODO!
 	bool setWindowSize(int w, int h);
 
 	struct PagePixels{
@@ -44,7 +44,8 @@ public:
 	ofFastEvent<ofxChrome> eventChromeReady; 		//
 	ofFastEvent<PagePixels> eventPixelsRead; 		//
 
-	// websocket callback methods - dont call directly!
+
+	// WebSocket callbacks - dont call directly!!!!
 	void onConnect( ofxLibwebsockets::Event& args );
 	void onOpen( ofxLibwebsockets::Event& args );
 	void onClose( ofxLibwebsockets::Event& args );
@@ -52,6 +53,7 @@ public:
 	void onMessage( ofxLibwebsockets::Event& args );
 	void onBroadcast( ofxLibwebsockets::Event& args );
 
+	
 protected:
 
 	enum State{
@@ -100,6 +102,7 @@ protected:
 
 	struct AsyncInput{
 		string url;
+		string html;
 		ofVec2f browserWinSize;
 		bool fullPage;
 	};
@@ -134,6 +137,7 @@ protected:
 		int bodyNodeID;
 		ofVec2f bodySize;
 		ofPixels pixels;
+		bool isCustomHtml;
 
 		Transaction(){readyToDelete = true; DomRootNodeID = bodyNodeID = -1;}
 	};
@@ -142,7 +146,8 @@ protected:
 
 	ofVec2f browserWinSize = ofVec2f(1280, 720);
 
-	void setPageNotifications(bool enabled);
+	void enableRequiredNotifications(bool enabled);
+	void browserFetch(const string & url, const string & html, bool fullpage);
 
 };
 

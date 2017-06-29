@@ -175,8 +175,7 @@ void ofxChrome::update(float dt){
 	}
 }
 
-
-bool ofxChrome::loadPage(string url, bool fullPage){
+void ofxChrome::browserFetch(const string & url, const string &  html, bool fullPage){
 
 	if(currentTransaction == nullptr){
 
@@ -186,17 +185,20 @@ bool ofxChrome::loadPage(string url, bool fullPage){
 		t->websocket = &ws;
 		t->type = LOAD_PAGE;
 		t->ID = msgID;
+		t->isCustomHtml = url.size() == 0;
 
 		AsyncInput input;
-		input.url = url;
-		input.browserWinSize = browserWinSize;
-		input.fullPage = fullPage;
+			input.url = url;
+			input.html = html;
+			input.browserWinSize = browserWinSize;
+			input.fullPage = fullPage;
 
 		currentTransaction = t;
 		msgID += 50;
 
 		std::function<AsyncOutput(const AsyncInput&)> asyncFunc = [t](const AsyncInput & in){ //note we are capturing the transaction
 
+			std::unique_lock<std::mutex> lock(t->mutex); //wait until semaphore is GO!
 			int w = in.browserWinSize.x;
 			int h = in.browserWinSize.y;
 			int internalID = 0;
@@ -204,26 +206,35 @@ bool ofxChrome::loadPage(string url, bool fullPage){
 			ofLogNotice("ofxChrome") << "####################  set viewport size " << w << " x " << h;
 			t->loadingInfo.state = SETTING_WINDOW_SIZE;
 			string size = "\"width\":" + ofToString(w) + ",\"height\":" + ofToString(h);
-			//string command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Browser.setWindowBounds\",\"params\":{\"windowID\":0,\"bounds\":{\"width\":" + ofToString(w) + "}}}";
 			string command;
 
 			command = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Emulation.setDeviceMetricsOverride\",\"params\":{" + size + ",\"deviceScaleFactor\":1.0,\"mobile\":false,\"fitWindow\":false}}";
+			ofLogNotice("ofxChrome") << "####################  Set Device Metrics Override " << command;
 			t->websocket->send(command); internalID++;
+			t->semaphore.wait(lock);
+
 			command = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Emulation.setVisibleSize\",\"params\":{" + size + "}}";
+			ofLogNotice("ofxChrome") << "####################  Set Visible Size " << command;
 			t->websocket->send(command); internalID++;
+			t->semaphore.wait(lock);
 
 			/*/////*/
 
 			t->loadingInfo.state = SETTING_UP;
-			string navigateUrlMsg = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Page.navigate\",\"params\":{\"url\":\"" + in.url + "\"}}";
-			t->websocket->send(navigateUrlMsg);
-			internalID++;
+			string browserMsg;
+			if(in.url.size()){
+				browserMsg = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Page.navigate\",\"params\":{\"url\":\"" + in.url + "\"}}";
+				ofLogNotice("ofxChrome") << "####################  requesting load of " << in.url;
+			}else{
+				browserMsg = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.setOuterHTML\",\"params\":{\"nodeId\":0,\"outerHTML\":\"" + in.html + "\"}}";
+				ofLogNotice("ofxChrome") << "####################  load HTML >> " << browserMsg;
+			}
 
-			ofLogNotice("ofxChrome") << "####################  requesting load of " << in.url;
 			t->loadingInfo.state = LOADING_PAGE;
-			std::unique_lock<std::mutex> lock(t->mutex); //wait until semaphore is GO!
+			t->websocket->send(browserMsg);
+			internalID++;
 			t->semaphore.wait_for(lock, std::chrono::seconds(30));	//at this point, we are waiting for Chrome to reply - so when the websocket gets data, will check for the
-																		//transaction ID and notify the semaphhore when to proceed
+																	//transaction ID and notify the semaphhore when to proceed
 
 			if(in.fullPage){
 				string getDOM = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.getDocument\"}";
@@ -298,6 +309,20 @@ bool ofxChrome::loadPage(string url, bool fullPage){
 	}else{
 		ofLogError("ofxChrome") << "currently busy! cant loadPage() now!";
 	}
+
+}
+
+
+bool ofxChrome::loadPage(string url, bool fullPage){
+
+	browserFetch(url, "", fullPage);
+}
+
+
+void ofxChrome::loadHTML(const string & html, bool fullPage ){
+
+	browserFetch("", html, fullPage);
+
 }
 
 
@@ -315,25 +340,17 @@ bool ofxChrome::setTransparentBackground(bool trans){
 }
 */
 
-void ofxChrome::setPageNotifications(bool enabled){
+void ofxChrome::enableRequiredNotifications(bool enabled){
 
-	ofLogNotice("ofxChrome") << "setPageNotifications: " << enabled << " ID: " << msgID;
+	ofLogNotice("ofxChrome") << "enableRequiredNotifications: " << enabled << " ID: " << msgID;
 	string command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Page.enable\"}";
 	ws.send(command); msgID++;
 
 	command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"DOM.enable\"}";
 	ws.send(command); msgID++;
 
-	command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Network.enable\"}";
+	//command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Network.enable\"}";
 	//ws.send(command); msgID++;
-
-}
-
-void ofxChrome::loadHTML(const string & html, bool fullPage ){
-
-	string command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"DOM.setOuterHTML\",\"params\":{\"nodeId\":0,\"outerHTML\":\"" + html + "\"}}";
-	ofLogNotice("ofxChrome") << "####################  load HTML >> " << command;
-	ws.send(command); msgID++;
 
 }
 
@@ -351,7 +368,7 @@ void ofxChrome::onConnect( ofxLibwebsockets::Event& args ){
 void ofxChrome::onOpen( ofxLibwebsockets::Event& args ){
 	ofLogNotice("ofxChrome") << "ofxLibwebsockets on open";
 	//setTransparentBackground(true);
-	setPageNotifications(true); //enable page notifications so we get events for loaded webpages
+	enableRequiredNotifications(true); //enable page notifications so we get events for loaded webpages
 }
 
 
@@ -387,6 +404,14 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 
 				if(currentTransaction->type == LOAD_PAGE){
 
+					if(currentTransaction->loadingInfo.state == LOADING_PAGE){
+					}
+					if(currentTransaction->loadingInfo.state == LOADING_PAGE){
+						if(currentTransaction->isCustomHtml){ //loading user supplied html
+							currentTransaction->semaphore.notify_all();
+						}
+					}
+
 					if(currentTransaction->loadingInfo.state == REQUESTING_DOM){
 						if(!json["result"]["root"]["nodeId"].isNull()){
 							currentTransaction->DomRootNodeID = json["result"]["root"]["nodeId"].asInt();
@@ -403,8 +428,8 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 
 					if(currentTransaction->loadingInfo.state == QUERYING_FRAME_SIZE){
 						if(!json["result"]["model"]["width"].isNull()){
-							currentTransaction->bodySize.x = json["result"]["model"]["width"].asInt();
-							currentTransaction->bodySize.y = json["result"]["model"]["height"].asInt();
+							currentTransaction->bodySize.x = MAX(json["result"]["model"]["width"].asInt(), browserWinSize.x);
+							currentTransaction->bodySize.y = MAX(json["result"]["model"]["height"].asInt(), browserWinSize.y);
 						}else ofLogError("ofxChrome") << "cant get BODY SIZE?";
 						currentTransaction->semaphore.notify_all();
 					}
@@ -438,20 +463,22 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 				if(currentTransaction->type == LOAD_PAGE){
 					if(currentTransaction->loadingInfo.state == LOADING_PAGE){
 
-						if(method == "Page.frameStartedLoading"){
-							currentTransaction->loadingInfo.numFramesLoading++;
-						}
-						if(method == "Page.frameStoppedLoading"){
-							currentTransaction->loadingInfo.numFramesLoaded++;
-						}
-						if(method == "Page.loadEventFired"){ //page is done loading!
-							currentTransaction->loadingInfo.loadEventFired = true;
-						}
+						if(!currentTransaction->isCustomHtml){ //loading external HTML, we get triggered events as it loads
+							if(method == "Page.frameStartedLoading"){
+								currentTransaction->loadingInfo.numFramesLoading++;
+							}
+							if(method == "Page.frameStoppedLoading"){
+								currentTransaction->loadingInfo.numFramesLoaded++;
+							}
+							if(method == "Page.loadEventFired"){ //page is done loading!
+								currentTransaction->loadingInfo.loadEventFired = true;
+							}
 
-						//if load event is done, and all frames that were loading are loaded, we are done
-						if(currentTransaction->loadingInfo.loadEventFired &&
-						   currentTransaction->loadingInfo.numFramesLoaded == currentTransaction->loadingInfo.numFramesLoaded){
-							currentTransaction->semaphore.notify_all(); //page is loaded, carry on the LOAD_PAGE transaction
+							//if load event is done, and all frames that were loading are loaded, we are done
+							if(currentTransaction->loadingInfo.loadEventFired &&
+							   currentTransaction->loadingInfo.numFramesLoaded == currentTransaction->loadingInfo.numFramesLoaded){
+								currentTransaction->semaphore.notify_all(); //page is loaded, carry on the LOAD_PAGE transaction
+							}
 						}
 					}
 				}
