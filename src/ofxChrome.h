@@ -149,5 +149,6 @@ protected:
 	void enableRequiredNotifications(bool enabled);
 	void browserFetch(const string & url, const string & html, bool fullpage);
 
+	static int numInstances;
 };
 

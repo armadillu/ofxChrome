@@ -22,9 +22,11 @@ class ofApp : public ofBaseApp{
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
 
-		ofxChrome chrome;
+	ofxChrome chrome;
+	ofxChrome chrome2;
 
 	ofTexture tex;
+	ofTexture tex2;
 
 	void onPixelsReady(ofxChrome::PagePixels& data);
 };

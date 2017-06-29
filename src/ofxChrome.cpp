@@ -12,8 +12,10 @@
 #include <mutex>
 #include <condition_variable>
 
-ofxChrome::ofxChrome(){
+int ofxChrome::numInstances = 0;
 
+ofxChrome::ofxChrome(){
+	numInstances++;
 }
 
 ofxChrome::~ofxChrome(){
@@ -62,7 +64,7 @@ bool ofxChrome::launchChrome(){
 		"--disable-threaded-scrolling",
 		"--hide-scrollbars",
 		//"--default-background-color=0",
-		"--profile-directory=" + ofGetTimestampString(), //start new session every time
+		"--user-data-dir=\"/ofxChrome_" + ofToString(numInstances) + "\"", //start new session every time
 		"about:blank"		
 	};
 	if(headlessMode){
@@ -91,7 +93,7 @@ void ofxChrome::openWebSocket(){
 	string jsonStr;
 	string wsRequestPath;
 
-	while(!ok && numTry < 30){ //lets find a tab in chrome to connect a WS to
+	while(!ok && numTry < 10){ //lets find a tab in chrome to connect a WS to
 		string url = "http://" + chromeAddress + ":" + chromePort + "/json";
 		ofLogNotice("ofxChrome") << "trying to connect to Chrome: " << url;
 		ofHttpResponse res = ofLoadURL(url);
@@ -99,7 +101,7 @@ void ofxChrome::openWebSocket(){
 
 		if(res.status == 200){
 			jsonStr = res.data.getData();
-			ofLogNotice() << jsonStr;
+			//ofLogNotice() << jsonStr;
 
 			Json::Reader reader;
 			Json::Value json;
@@ -301,6 +303,7 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 			PagePixels pp;
 			pp.pixels = res.pixels;
 			pp.url = res.url;
+			pp.who = this;
 			ofNotifyEvent(eventPixelsRead, pp, this);
 		};
 

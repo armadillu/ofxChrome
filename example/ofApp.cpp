@@ -3,14 +3,17 @@
 
 void ofApp::setup(){
 
-	bool headless = false;
+	bool headless = true;
 	string chromeBin = "/Applications/Inet_Apps/Browsers/Google Chrome.app/Contents/MacOS/Google Chrome"; //standard
-	chromeBin = "/Users/oriol/Desktop/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary"; //canary
-	chromeBin = "/Users/oriol/Desktop/Google Chrome.app/Contents/MacOS/Google Chrome"; //beta
+	string canaryBin = "/Users/oriol/Desktop/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary"; //canary
+	string chromeBetaBin = "/Users/oriol/Desktop/Google Chrome.app/Contents/MacOS/Google Chrome"; //beta
 
-	chrome.setup(chromeBin, "127.0.0.1", 9222, headless);
+	string chosenBin = chromeBin;
+	chrome.setup(chosenBin, "127.0.0.1", 9222, headless);
+	chrome2.setup(chosenBin, "127.0.0.1", 9333, headless);
 
 	ofAddListener(chrome.eventPixelsRead, this, &ofApp::onPixelsReady);
+	ofAddListener(chrome2.eventPixelsRead, this, &ofApp::onPixelsReady);
 }
 
 
@@ -18,25 +21,45 @@ void ofApp::update(){
 
 	float dt = 1./60;
 	chrome.update(dt);
-	
+	chrome2.update(dt);
+
 }
 
 
 void ofApp::draw(){
 
-	chrome.draw(30,30);
-
 	if(tex.isAllocated()){
 		ofRectangle r = ofRectangle(0,0,tex.getWidth(), tex.getHeight());
-		r.scaleTo(ofGetCurrentViewport());
+		auto viewport = ofGetCurrentViewport();
+		viewport.width *= 0.5;
+		r.scaleTo(viewport);
 		tex.draw(r);
+	}
+
+	if(tex2.isAllocated()){
+		ofRectangle r = ofRectangle(0,0,tex2.getWidth(), tex2.getHeight());
+		auto viewport = ofGetCurrentViewport();
+		viewport.width *= 0.5;
+		viewport.x += viewport.width;
+		r.scaleTo(viewport);
+		tex2.draw(r);
 	}
 }
 
+
 void ofApp::onPixelsReady(ofxChrome::PagePixels& data){
+
 	ofLogNotice() << "ofxChrome pixels ready : " << data.pixels.getWidth() << " x " << data.pixels.getHeight();
-	tex.clear();
-	tex.loadData(data.pixels);
+
+	if(data.who == &chrome){
+		tex.clear();
+		tex.loadData(data.pixels);
+	}
+
+	if(data.who == &chrome2){
+		tex2.clear();
+		tex2.loadData(data.pixels);
+	}
 }
 
 
@@ -52,18 +75,17 @@ void ofApp::keyPressed(int key){
 	}
 
 	if(key=='3'){
-		chrome.loadPage("https://www.youtube.com", false);
+		chrome2.loadPage("https://www.youtube.com", false);
 	}
 
 	if(key=='4'){
-		chrome.loadPage("http://uri.cat/blank.html", false);
+		chrome2.loadPage("http://uri.cat/blank.html", false);
 	}
 
 	if(key=='5'){
 		string html = "<html><body>It's this time in OpenFrameworks: " + ofGetTimestampString() +  "</body></html>";
-		chrome.loadHTML(html, true);
+		chrome2.loadHTML(html, true);
 	}
-
 
 }
 
