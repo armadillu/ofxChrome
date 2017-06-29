@@ -56,7 +56,7 @@ bool ofxChrome::launchChrome(){
 		"--no-first-run",
 		"--enable-devtools-experiments",
 		"--enable-experimental-web-platform-features",
-		"--window-size=640,1300", //TODO!
+		"--window-size=" + ofToString((int)browserWinSize.x) + "," + ofToString((int)browserWinSize.y), //TODO!
 		"--disable-overlay-scrollbar",
 		"--disable-smooth-scrolling",
 		"--disable-threaded-scrolling",
@@ -193,7 +193,7 @@ bool ofxChrome::loadPage(string url, bool fullPage){
 		input.fullPage = fullPage;
 
 		currentTransaction = t;
-		msgID += 10;
+		msgID += 50;
 
 		std::function<AsyncOutput(const AsyncInput&)> asyncFunc = [t](const AsyncInput & in){ //note we are capturing the transaction
 
@@ -201,7 +201,7 @@ bool ofxChrome::loadPage(string url, bool fullPage){
 			int h = in.browserWinSize.y;
 			int internalID = 0;
 
-			ofLogNotice("ofxChrome") << "####################  set viewport size" << w << " x " << h;
+			ofLogNotice("ofxChrome") << "####################  set viewport size " << w << " x " << h;
 			t->loadingInfo.state = SETTING_WINDOW_SIZE;
 			string size = "\"width\":" + ofToString(w) + ",\"height\":" + ofToString(h);
 			//string command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Browser.setWindowBounds\",\"params\":{\"windowID\":0,\"bounds\":{\"width\":" + ofToString(w) + "}}}";
@@ -329,7 +329,12 @@ void ofxChrome::setPageNotifications(bool enabled){
 
 }
 
-void ofxChrome::loadHTML(const string & html){
+void ofxChrome::loadHTML(const string & html, bool fullPage ){
+
+	string command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"DOM.setOuterHTML\",\"params\":{\"nodeId\":0,\"outerHTML\":\"" + html + "\"}}";
+	ofLogNotice("ofxChrome") << "####################  load HTML >> " << command;
+	ws.send(command); msgID++;
+
 }
 
 void ofxChrome::draw(int x, int y){

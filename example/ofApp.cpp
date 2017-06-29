@@ -3,7 +3,7 @@
 
 void ofApp::setup(){
 
-	bool headless = true;
+	bool headless = false;
 	string chromeBin = "/Applications/Inet_Apps/Browsers/Google Chrome.app/Contents/MacOS/Google Chrome"; //standard
 	chromeBin = "/Users/oriol/Desktop/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary"; //canary
 	chromeBin = "/Users/oriol/Desktop/Google Chrome.app/Contents/MacOS/Google Chrome"; //beta
@@ -58,6 +58,12 @@ void ofApp::keyPressed(int key){
 	if(key=='4'){
 		chrome.loadPage("http://uri.cat/blank.html", false);
 	}
+
+	if(key=='5'){
+		string html = "<html><body>It's this time in OpenFrameworks: " + ofGetTimestampString() +  "</body></html>";
+		chrome.loadHTML(html, true);
+	}
+
 
 }
 

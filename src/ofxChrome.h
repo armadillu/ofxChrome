@@ -29,9 +29,10 @@ public:
 	void draw(int x, int y);
 
 	bool loadPage(string url, bool fullPage = false); //if fullPage==true, it will return the whole page height vs only the only visible part that would fit in the browser window
-	bool setWindowSize(int w, int h);
+	void loadHTML(const string & html, bool fullPage = false);
+
 	//bool setTransparentBackground(bool trans);
-	void loadHTML(const string & html);
+	bool setWindowSize(int w, int h);
 
 	struct PagePixels{
 		ofPixels pixels;
