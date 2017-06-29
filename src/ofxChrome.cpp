@@ -176,7 +176,8 @@ void ofxChrome::update(float dt){
 }
 
 
-bool ofxChrome::loadPage(string url, int & requestID){
+bool ofxChrome::loadPage(string url, bool fullPage){
+
 	if(currentTransaction == nullptr){
 
 		ofLogNotice("ofxChrome") << "loadPage() \"" << url << "\" ID: " << msgID;
@@ -184,11 +185,12 @@ bool ofxChrome::loadPage(string url, int & requestID){
 		Transaction * t = new Transaction();
 		t->websocket = &ws;
 		t->type = LOAD_PAGE;
-		requestID = t->ID = msgID;
+		t->ID = msgID;
 
 		AsyncInput input;
 		input.url = url;
 		input.browserWinSize = browserWinSize;
+		input.fullPage = fullPage;
 
 		currentTransaction = t;
 		msgID += 10;
@@ -205,15 +207,13 @@ bool ofxChrome::loadPage(string url, int & requestID){
 			//string command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Browser.setWindowBounds\",\"params\":{\"windowID\":0,\"bounds\":{\"width\":" + ofToString(w) + "}}}";
 			string command;
 
-			command = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Emulation.setDeviceMetricsOverride\",\"params\":{" + size + ",\"deviceScaleFactor\":0.0,\"mobile\":false,\"fitWindow\":false}}";
+			command = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Emulation.setDeviceMetricsOverride\",\"params\":{" + size + ",\"deviceScaleFactor\":1.0,\"mobile\":false,\"fitWindow\":false}}";
 			t->websocket->send(command); internalID++;
-
 			command = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Emulation.setVisibleSize\",\"params\":{" + size + "}}";
 			t->websocket->send(command); internalID++;
 
 			/*/////*/
 
-			AsyncOutput r;
 			t->loadingInfo.state = SETTING_UP;
 			string navigateUrlMsg = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Page.navigate\",\"params\":{\"url\":\"" + in.url + "\"}}";
 			t->websocket->send(navigateUrlMsg);
@@ -225,28 +225,33 @@ bool ofxChrome::loadPage(string url, int & requestID){
 			t->semaphore.wait_for(lock, std::chrono::seconds(30));	//at this point, we are waiting for Chrome to reply - so when the websocket gets data, will check for the
 																		//transaction ID and notify the semaphhore when to proceed
 
-			string getDOM = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.getDocument\"}";
-			ofLogNotice("ofxChrome") << "####################  requesting DOM >> " << getDOM;
-			t->websocket->send(getDOM);
-			internalID++;
-			t->loadingInfo.state = REQUESTING_DOM;
-			t->semaphore.wait(lock);
+			if(in.fullPage){
+				string getDOM = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.getDocument\"}";
+				ofLogNotice("ofxChrome") << "####################  requesting DOM >> " << getDOM;
+				t->websocket->send(getDOM);
+				internalID++;
+				t->loadingInfo.state = REQUESTING_DOM;
+				t->semaphore.wait(lock);
 
-			string params = "{\"nodeId\":" + ofToString(t->DomRootNodeID) + ",\"selector\":\"body\"}";
-			string getBody = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.querySelector\", \"params\":" + params + "}";
-			ofLogNotice("ofxChrome") << "####################  requesting BODY >> " << getDOM;
-			t->websocket->send(getBody);
-			internalID++;
-			t->loadingInfo.state = REQUESTING_BODY;
-			t->semaphore.wait(lock);
+				string params = "{\"nodeId\":" + ofToString(t->DomRootNodeID) + ",\"selector\":\"body\"}";
+				string getBody = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.querySelector\", \"params\":" + params + "}";
+				ofLogNotice("ofxChrome") << "####################  requesting BODY >> " << getDOM;
+				t->websocket->send(getBody);
+				internalID++;
+				t->loadingInfo.state = REQUESTING_BODY;
+				t->semaphore.wait(lock);
 
-			params = "{\"nodeId\":" + ofToString(t->bodyNodeID) + "}";
-			string getHeight = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.getBoxModel\", \"params\":" + params + "}";
-			ofLogNotice("ofxChrome") << "####################  requesting HEIGHT >> " << getHeight;
-			t->websocket->send(getHeight);
-			internalID++;
-			t->loadingInfo.state = QUERYING_FRAME_SIZE;
-			t->semaphore.wait(lock);
+				params = "{\"nodeId\":" + ofToString(t->bodyNodeID) + "}";
+				string getHeight = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.getBoxModel\", \"params\":" + params + "}";
+				ofLogNotice("ofxChrome") << "####################  requesting HEIGHT >> " << getHeight;
+				t->websocket->send(getHeight);
+				internalID++;
+				t->loadingInfo.state = QUERYING_FRAME_SIZE;
+				t->semaphore.wait(lock);
+			}else{
+				t->bodySize.x = w;
+				t->bodySize.y = h;
+			}
 
 			size = "\"width\":" + ofToString((int)t->bodySize.x) + ",\"height\":" + ofToString((int)t->bodySize.y);
 			command = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Emulation.setVisibleSize\",\"params\":{" + size + "}}";
@@ -263,25 +268,28 @@ bool ofxChrome::loadPage(string url, int & requestID){
 			t->loadingInfo.state = FORCE_VIEWPORT;
 			t->semaphore.wait(lock);
 
-			ofLogNotice("ofxChrome") << "####################  requesting PIXEL DATA >> " << getHeight;
 			string saveScreenshotCmd = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Page.captureScreenshot\",\"params\":{}}";
+			ofLogNotice("ofxChrome") << "####################  requesting PIXEL DATA >> " << saveScreenshotCmd;
 			t->websocket->send(saveScreenshotCmd);
 			internalID++;
 			t->loadingInfo.state = GET_PIXEL_DATA;
 			t->semaphore.wait(lock);
 
 			t->loadingInfo.state = DONE;
+
+			AsyncOutput r;
 			r.pixels = t->pixels;
+			r.url = in.url;
 			return r;
 		};
 
-		std::function<void(const AsyncOutput &)> asyncResultReadyFunc = [this](const AsyncOutput & res){
-			ofLogNotice("ofxChrome") << "async result ready!";
 
+		std::function<void(const AsyncOutput &)> asyncResultReadyFunc = [this](const AsyncOutput & res){
 			delete currentTransaction;
 			currentTransaction = nullptr;
 			PagePixels pp;
 			pp.pixels = res.pixels;
+			pp.url = res.url;
 			ofNotifyEvent(eventPixelsRead, pp, this);
 		};
 
@@ -299,11 +307,13 @@ bool ofxChrome::setWindowSize(int w, int h){
 }
 
 
+/*
 bool ofxChrome::setTransparentBackground(bool trans){
 	ofLogNotice("ofxChrome") << "setTransparentBackground: " << trans;
 	string saveScreenshotMsg = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Page.setDocumentContent\",\"params\":{\"r\":255,\"g\":0,\"b\":0,\"a\":255}}";
 	ws.send(saveScreenshotMsg); msgID++;
 }
+*/
 
 void ofxChrome::setPageNotifications(bool enabled){
 
@@ -319,7 +329,7 @@ void ofxChrome::setPageNotifications(bool enabled){
 
 }
 
-void ofxChrome::loadHTML(const string & html, int & requestID){
+void ofxChrome::loadHTML(const string & html){
 }
 
 void ofxChrome::draw(int x, int y){

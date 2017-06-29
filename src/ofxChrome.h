@@ -28,15 +28,15 @@ public:
 	void update(float dt);
 	void draw(int x, int y);
 
-	bool loadPage(string url, int & requestID);
+	bool loadPage(string url, bool fullPage = false); //if fullPage==true, it will return the whole page height vs only the only visible part that would fit in the browser window
 	bool setWindowSize(int w, int h);
-	bool setTransparentBackground(bool trans);
-	void loadHTML(const string & html, int & requestID);
-	void setPageNotifications(bool enabled);
+	//bool setTransparentBackground(bool trans);
+	void loadHTML(const string & html);
 
 	struct PagePixels{
 		ofPixels pixels;
 		ofxChrome * who;
+		string url;
 	};
 
 	ofFastEvent<ofxChrome> eventChromeSetupFailed; 	//
@@ -50,7 +50,6 @@ public:
 	void onIdle( ofxLibwebsockets::Event& args );
 	void onMessage( ofxLibwebsockets::Event& args );
 	void onBroadcast( ofxLibwebsockets::Event& args );
-
 
 protected:
 
@@ -101,10 +100,12 @@ protected:
 	struct AsyncInput{
 		string url;
 		ofVec2f browserWinSize;
+		bool fullPage;
 	};
 
 	struct AsyncOutput{
 		ofPixels pixels;
+		string url;
 	};
 
 	struct LoadPageInfo{
@@ -140,6 +141,7 @@ protected:
 
 	ofVec2f browserWinSize = ofVec2f(1280, 720);
 
-	//vector<AsyncHandler<AsyncInput, AsyncOutput>*> activeAsyncs;
+	void setPageNotifications(bool enabled);
+
 };
 

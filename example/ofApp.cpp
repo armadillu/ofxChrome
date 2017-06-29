@@ -35,6 +35,7 @@ void ofApp::draw(){
 
 void ofApp::onPixelsReady(ofxChrome::PagePixels& data){
 	ofLogNotice() << "ofxChrome pixels ready : " << data.pixels.getWidth() << " x " << data.pixels.getHeight();
+	tex.clear();
 	tex.loadData(data.pixels);
 }
 
@@ -43,23 +44,19 @@ void ofApp::keyPressed(int key){
 
 
 	if(key=='1'){
-		int reqID;
-		chrome.loadPage("http://uri.cat", reqID);
+		chrome.loadPage("http://uri.cat", true);
 	}
 
 	if(key=='2'){
-		int reqID;
-		chrome.loadPage("http://apple.com", reqID);
+		chrome.loadPage("http://apple.com", false);
 	}
 
 	if(key=='3'){
-		int reqID;
-		chrome.loadPage("https://www.youtube.com", reqID);
+		chrome.loadPage("https://www.youtube.com", false);
 	}
 
 	if(key=='4'){
-		int reqID;
-		chrome.loadPage("http://uri.cat/blank.html", reqID);
+		chrome.loadPage("http://uri.cat/blank.html", false);
 	}
 
 }
