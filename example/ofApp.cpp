@@ -23,6 +23,12 @@ void ofApp::update(){
 	chrome.update(dt);
 	chrome2.update(dt);
 
+	//long term test
+	int interval = 3 * 60; //10 sec
+	if(ofGetFrameNum()%interval == 1){
+		keyPressed('1' + (int)ceil(ofRandom(4)));
+	}
+
 }
 
 
