@@ -1,11 +1,19 @@
 #pragma once
 
 #include "ofMain.h"
-#include "ofxChrome.h"
+#include "ofxChromePool.h"
+
+#define TIME_PROFILE //comment this out to avoid the ofxTimeMeasurements dependency
+
+#ifdef TIME_PROFILE
+	#include "ofxTimeMeasurements.h"
+#endif
+
 
 class ofApp : public ofBaseApp{
 
 	public:
+
 		void setup();
 		void update();
 		void draw();
@@ -22,15 +30,13 @@ class ofApp : public ofBaseApp{
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
 
-	ofxChrome chrome;
-	ofxChrome chrome2;
 
-	ofTexture tex;
-	ofTexture tex2;
+	ofxChromePool chromes;
+
+	map<ofxChrome*,ofTexture> textures;
 
 	void onPixelsReady(ofxChrome::PagePixels& data);
-	void onChromeReady(ofxChrome&);
-
+	void onChromeReady(ofxChromePool&);
 
 	vector<string> urls;
 };

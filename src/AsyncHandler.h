@@ -36,10 +36,10 @@ public:
 			future = std::async(std::launch::async, taskFunc, taskArg);
 			state = BUSY;
 			this->asyncResultReadyFunc = asyncResultReadyFunc;
-			ofLogNotice("AsyncHandler") << "starting task";
+			//ofLogNotice("AsyncHandler") << "starting task";
 			return true;
 		}else{
-			ofLogError("AsyncHandler") << "can't do task - busy!";
+			//ofLogError("AsyncHandler") << "can't do task - busy!";
 			return false;
 		}
 	}

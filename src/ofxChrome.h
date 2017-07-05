@@ -42,7 +42,7 @@ public:
 
 	ofFastEvent<ofxChrome> eventChromeSetupFailed; 	//
 	ofFastEvent<ofxChrome> eventChromeReady; 		//
-	ofFastEvent<PagePixels> eventPixelsRead; 		//
+	ofFastEvent<PagePixels> eventPixelsReady; 		//
 
 
 	// WebSocket callbacks - dont call directly!!!!

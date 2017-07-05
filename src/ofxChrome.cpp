@@ -96,7 +96,16 @@ void ofxChrome::openWebSocket(){
 	while(!ok && numTry < 10){ //lets find a tab in chrome to connect a WS to
 		string url = "http://" + chromeAddress + ":" + chromePort + "/json";
 		ofLogNotice("ofxChrome") << "trying to connect to Chrome: " << url;
-		ofHttpResponse res = ofLoadURL(url);
+
+		ofURLFileLoader loader;
+
+		ofHttpRequest request;
+		request.url = url;
+		request.saveTo = false;
+		request.timeoutSeconds = 1.0;
+
+		ofHttpResponse res = loader.handleRequest(request);
+
 		int retryInterval = 250; //ms
 
 		if(res.status == 200){
@@ -120,10 +129,10 @@ void ofxChrome::openWebSocket(){
 			auto split = ofSplitString(websocketURL, chromePort);
 			if (split.size() > 1){
 				wsRequestPath = split.back();
-				ofLogNotice("ofxChrome")<< "websocket found: " << websocketURL;
+				ofLogNotice("ofxChrome")<< "WebSocket found: \"" << websocketURL << "\"";
 				ok = true;
 			}else{
-				ofLogError("ofxChrome") << "wtf! Can't find a Chrome websocket!";
+				ofLogError("ofxChrome") << "Can't find a Chrome websocket! Sleeping and retrying...";
 				ofSleepMillis(retryInterval);
 			}
 
@@ -146,7 +155,7 @@ void ofxChrome::openWebSocket(){
 		ws.addListener(this);
 
 		ok = ws.connect(options);
-		ofLogNotice("ofxChrome") << "Open WebSocket: " << ok;
+		//ofLogNotice("ofxChrome") << "Open WebSocket: " << ok;
 		state = READY_FOR_COMMANDS;
 		ofNotifyEvent(eventChromeReady, *this, this);
 	}else{
@@ -171,17 +180,14 @@ void ofxChrome::update(float dt){
 		}
 	}
 	chromeProcess.update();
-
-	if(currentTransaction){
-		//if
-	}
 }
+
 
 void ofxChrome::browserFetch(const string & url, const string &  html, bool fullPage){
 
 	if(currentTransaction == nullptr){
 
-		ofLogNotice("ofxChrome") << "loadPage() \"" << url << "\" ID: " << msgID;
+		//ofLogNotice("ofxChrome") << "loadPage() \"" << url << "\" ID: " << msgID;
 
 		Transaction * t = new Transaction();
 		t->websocket = &ws;
@@ -205,18 +211,18 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 			int h = in.browserWinSize.y;
 			int internalID = 0;
 
-			ofLogNotice("ofxChrome") << "####################  set viewport size " << w << " x " << h;
+			//ofLogNotice("ofxChrome") << "####################  set viewport size " << w << " x " << h;
 			t->loadingInfo.state = SETTING_WINDOW_SIZE;
 			string size = "\"width\":" + ofToString(w) + ",\"height\":" + ofToString(h);
 			string command;
 
 			command = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Emulation.setDeviceMetricsOverride\",\"params\":{" + size + ",\"deviceScaleFactor\":1.0,\"mobile\":false,\"fitWindow\":false}}";
-			ofLogNotice("ofxChrome") << "####################  Set Device Metrics Override " << command;
+			//ofLogNotice("ofxChrome") << "####################  Set Device Metrics Override " << command;
 			t->websocket->send(command); internalID++;
 			t->semaphore.wait(lock);
 
 			command = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Emulation.setVisibleSize\",\"params\":{" + size + "}}";
-			ofLogNotice("ofxChrome") << "####################  Set Visible Size " << command;
+			//ofLogNotice("ofxChrome") << "####################  Set Visible Size " << command;
 			t->websocket->send(command); internalID++;
 			t->semaphore.wait(lock);
 
@@ -226,10 +232,10 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 			string browserMsg;
 			if(in.url.size()){
 				browserMsg = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Page.navigate\",\"params\":{\"url\":\"" + in.url + "\"}}";
-				ofLogNotice("ofxChrome") << "####################  requesting load of " << in.url;
+				//ofLogNotice("ofxChrome") << "####################  requesting load of " << in.url;
 			}else{
 				browserMsg = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.setOuterHTML\",\"params\":{\"nodeId\":0,\"outerHTML\":\"" + in.html + "\"}}";
-				ofLogNotice("ofxChrome") << "####################  load HTML >> " << browserMsg;
+				//ofLogNotice("ofxChrome") << "####################  load HTML >> " << browserMsg;
 			}
 
 			t->loadingInfo.state = LOADING_PAGE;
@@ -240,7 +246,7 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 
 			if(in.fullPage){
 				string getDOM = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.getDocument\"}";
-				ofLogNotice("ofxChrome") << "####################  requesting DOM >> " << getDOM;
+				//ofLogNotice("ofxChrome") << "####################  requesting DOM >> " << getDOM;
 				t->websocket->send(getDOM);
 				internalID++;
 				t->loadingInfo.state = REQUESTING_DOM;
@@ -248,7 +254,7 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 
 				string params = "{\"nodeId\":" + ofToString(t->DomRootNodeID) + ",\"selector\":\"body\"}";
 				string getBody = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.querySelector\", \"params\":" + params + "}";
-				ofLogNotice("ofxChrome") << "####################  requesting BODY >> " << getDOM;
+				//ofLogNotice("ofxChrome") << "####################  requesting BODY >> " << getDOM;
 				t->websocket->send(getBody);
 				internalID++;
 				t->loadingInfo.state = REQUESTING_BODY;
@@ -256,7 +262,7 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 
 				params = "{\"nodeId\":" + ofToString(t->bodyNodeID) + "}";
 				string getHeight = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.getBoxModel\", \"params\":" + params + "}";
-				ofLogNotice("ofxChrome") << "####################  requesting HEIGHT >> " << getHeight;
+				//ofLogNotice("ofxChrome") << "####################  requesting HEIGHT >> " << getHeight;
 				t->websocket->send(getHeight);
 				internalID++;
 				t->loadingInfo.state = QUERYING_FRAME_SIZE;
@@ -268,21 +274,21 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 
 			size = "\"width\":" + ofToString((int)t->bodySize.x) + ",\"height\":" + ofToString((int)t->bodySize.y);
 			command = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Emulation.setVisibleSize\",\"params\":{" + size + "}}";
-			ofLogNotice("ofxChrome") << "####################  setting FRAME SIZE >> " << command;
+			//ofLogNotice("ofxChrome") << "####################  setting FRAME SIZE >> " << command;
 			t->websocket->send(command);
 			internalID++;
 			t->loadingInfo.state = SETTING_WINDOW_SIZE;
 			t->semaphore.wait(lock);
 
 			command = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Emulation.forceViewport\",\"params\":{\"x\":0,\"y\":0,\"scale\":1}}";
-			ofLogNotice("ofxChrome") << "####################  setting FORCE VIEWPORT >> " << command;
+			//ofLogNotice("ofxChrome") << "####################  setting FORCE VIEWPORT >> " << command;
 			t->websocket->send(command);
 			internalID++;
 			t->loadingInfo.state = FORCE_VIEWPORT;
 			t->semaphore.wait(lock);
 
 			string saveScreenshotCmd = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"Page.captureScreenshot\",\"params\":{}}";
-			ofLogNotice("ofxChrome") << "####################  requesting PIXEL DATA >> " << saveScreenshotCmd;
+			//ofLogNotice("ofxChrome") << "####################  requesting PIXEL DATA >> " << saveScreenshotCmd;
 			t->websocket->send(saveScreenshotCmd);
 			internalID++;
 			t->loadingInfo.state = GET_PIXEL_DATA;
@@ -304,7 +310,8 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 			pp.pixels = res.pixels;
 			pp.url = res.url;
 			pp.who = this;
-			ofNotifyEvent(eventPixelsRead, pp, this);
+			ofNotifyEvent(eventPixelsReady, pp, this);
+			ofLogNotice("ofxChrome") << "page ready \"" << pp.url << "\"";
 		};
 
 		t->async.startTask(asyncFunc, input, asyncResultReadyFunc);
@@ -346,7 +353,7 @@ bool ofxChrome::setTransparentBackground(bool trans){
 
 void ofxChrome::enableRequiredNotifications(bool enabled){
 
-	ofLogNotice("ofxChrome") << "enableRequiredNotifications: " << enabled << " ID: " << msgID;
+	//ofLogNotice("ofxChrome") << "enableRequiredNotifications: " << enabled << " ID: " << msgID;
 	string command = "{\"id\":" + ofToString(msgID) + ",\"method\":\"Page.enable\"}";
 	ws.send(command); msgID++;
 
@@ -370,7 +377,7 @@ void ofxChrome::onConnect( ofxLibwebsockets::Event& args ){
 
 
 void ofxChrome::onOpen( ofxLibwebsockets::Event& args ){
-	ofLogNotice("ofxChrome") << "ofxLibwebsockets on open";
+	//ofLogNotice("ofxChrome") << "ofxLibwebsockets on open";
 	//setTransparentBackground(true);
 	enableRequiredNotifications(true); //enable page notifications so we get events for loaded webpages
 }
@@ -387,7 +394,7 @@ void ofxChrome::onIdle( ofxLibwebsockets::Event& args ){
 
 
 void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
-	ofLogNotice("ofxChrome") << "ofxLibwebsockets got message: " << ofToString(ofGetElapsedTimef()) << " - " << args.message.substr(0, MIN(100,args.message.size()) );
+	//ofLogNotice("ofxChrome") << "ofxLibwebsockets got message: " << ofToString(ofGetElapsedTimef()) << " - " << args.message.substr(0, MIN(100,args.message.size()) );
 
 	Json::Reader reader;
 	Json::Value json;
@@ -403,7 +410,7 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 			int thisID = json["id"].asInt();
 
 			if(currentTransaction == nullptr){
-				ofLogError("ofxChrome") << "cant find a transaction for this ID? " << thisID;
+				//ofLogError("ofxChrome") << "cant find a transaction for this ID? " << thisID;
 			}else{
 
 				if(currentTransaction->type == LOAD_PAGE){
