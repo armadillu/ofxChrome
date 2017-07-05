@@ -29,4 +29,8 @@ class ofApp : public ofBaseApp{
 	ofTexture tex2;
 
 	void onPixelsReady(ofxChrome::PagePixels& data);
+	void onChromeReady(ofxChrome&);
+
+
+	vector<string> urls;
 };

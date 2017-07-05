@@ -318,6 +318,7 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 
 bool ofxChrome::loadPage(string url, bool fullPage){
 
+	ofLogNotice("ofxChrome") << "loadPage(\"" << url << "\");";
 	browserFetch(url, "", fullPage);
 }
 
