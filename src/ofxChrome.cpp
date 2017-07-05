@@ -38,6 +38,8 @@ void ofxChrome::setup(string chromeBinaryPath, string chromeRemoteDebugIP, int c
 	this->chromeRemoteDebugIP = chromeRemoteDebugIP;
 	this->chromeRemoteDebugPort = chromeRemoteDebugPort;
 
+	time = 0;
+
 	if(chromeBinaryPath.size()){
 		bool ok = launchChrome();
 		state = LAUNCHING_CHROME;
@@ -45,7 +47,6 @@ void ofxChrome::setup(string chromeBinaryPath, string chromeRemoteDebugIP, int c
 		state = CONNECTING_TO_WS;
 		openWebSocket();
 	}
-	time = 0;
 }
 
 
@@ -102,7 +103,7 @@ void ofxChrome::openWebSocket(){
 		ofHttpRequest request;
 		request.url = url;
 		request.saveTo = false;
-		request.timeoutSeconds = 1.0;
+		request.timeoutSeconds = 1;
 
 		ofHttpResponse res = loader.handleRequest(request);
 

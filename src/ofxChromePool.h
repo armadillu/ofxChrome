@@ -16,7 +16,7 @@ public:
 	ofxChromePool();
 	~ofxChromePool();
 
-	void setup(int numChromeInstances, string chromeBinaryPath, string chromeRemoteDebugIP, bool headless);
+	void setup(int numChromeInstances, string chromeBinaryPath, string chromeRemoteDebugIP, int basePort, bool headless);
 
 	void update(float dt);
 	void drawStatus(int x, int y);
@@ -42,8 +42,15 @@ protected:
 		bool busy = false;
 	};
 
+	void newChrome();
 	map<ofxChrome*, ChromeState> chromes;
 
 	ofxChrome* getAvaialbleChrome();
+
+	bool chromeHeadless;
+	string chromeIP;
+	string chromePath;
+
+	int port; //currently used port (incs)
 };
 

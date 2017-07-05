@@ -34,6 +34,7 @@ class ofApp : public ofBaseApp{
 	ofxChromePool chromes;
 
 	map<ofxChrome*,ofTexture> textures;
+	map<ofxChrome*,string> loadedUrls;
 
 	void onPixelsReady(ofxChrome::PagePixels& data);
 	void onChromeReady(ofxChromePool&);

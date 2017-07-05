@@ -20,24 +20,29 @@ ofxChromePool::~ofxChromePool(){
 }
 
 
-void ofxChromePool::setup(int numChromeInstances, string chromeBinaryPath, string chromeRemoteDebugIP, bool headless){
+void ofxChromePool::setup(int numChromeInstances, string chromeBinaryPath, string chromeRemoteDebugIP, int basePort, bool headless){
 
+	chromeHeadless = headless;
+	chromeIP = chromeRemoteDebugIP;
+	chromePath = chromeBinaryPath;
 	numChromeInstances = MAX(1, numChromeInstances);
+ 	basePort = MAX(1001,basePort);
 
-	int basePort = 35260;
-	int port = basePort;
+	port = basePort;
 	for(int i = 0; i < numChromeInstances; i++){
-
-		auto c = new ofxChrome();
-
-		ofAddListener(c->eventChromeReady, this, &ofxChromePool::onChromeReady);
-		ofAddListener(c->eventChromeSetupFailed, this, &ofxChromePool::onChromeSetupFailed);
-		ofAddListener(c->eventPixelsReady, this, &ofxChromePool::onPixelsReady);
-
-		c->setup(chromeBinaryPath, chromeRemoteDebugIP, port, headless);
-		chromes[c] = ChromeState();
-		port++;
+		newChrome();
+		port += 2;
 	}
+}
+
+
+void ofxChromePool::newChrome(){
+	auto c = new ofxChrome();
+	ofAddListener(c->eventChromeReady, this, &ofxChromePool::onChromeReady);
+	ofAddListener(c->eventChromeSetupFailed, this, &ofxChromePool::onChromeSetupFailed);
+	ofAddListener(c->eventPixelsReady, this, &ofxChromePool::onPixelsReady);
+	c->setup(chromePath, chromeIP, port, chromeHeadless);
+	chromes[c] = ChromeState();
 }
 
 void ofxChromePool::onChromeReady(ofxChrome& who){
@@ -47,9 +52,14 @@ void ofxChromePool::onChromeReady(ofxChrome& who){
 }
 
 void ofxChromePool::onChromeSetupFailed(ofxChrome& who){
-	ofLogError("ofxChromePool") << "chrome setup failed!";
+	ofLogError("ofxChromePool") << "chrome setup failed! making a new one?";
 	chromes[&who].setup = false;
 	chromes[&who].busy = false;
+
+	delete &who;
+	chromes.erase(chromes.find(&who));
+
+	newChrome();
 }
 
 
@@ -68,10 +78,10 @@ void ofxChromePool::update(float dt){
 
 void ofxChromePool::drawStatus(int x, int y){
 
-	string msg = "ofxChromePool:";
+	string msg = "## ofxChromePool ##";
 	int c = 0;
 	for(auto & it : chromes){
-		msg += "\n   [" + ofToString(c) + "] setup: " + ofToString(it.second.setup) + " busy: " + ofToString(it.second.busy);
+		msg += "\n[" + ofToString(c) + "] setup: " + ofToString(it.second.setup) + " busy: " + ofToString(it.second.busy);
 		c++;
 	}
 

@@ -39,7 +39,7 @@ public:
 			//ofLogNotice("AsyncHandler") << "starting task";
 			return true;
 		}else{
-			//ofLogError("AsyncHandler") << "can't do task - busy!";
+			ofLogError("AsyncHandler") << "can't do task - busy!";
 			return false;
 		}
 	}
@@ -47,7 +47,7 @@ public:
 
 	void update(ofEventArgs & ){
 		if(isReady()){
-			ofLogNotice("AsyncHandler") << "task ready";
+			//ofLogNotice("AsyncHandler") << "task ready";
 			asyncResultReadyFunc(future.get());
 		}
 	}

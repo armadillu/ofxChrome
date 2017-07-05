@@ -15,7 +15,7 @@ void ofApp::setup(){
 	ofAddListener(chromes.eventChromeReady, this, &ofApp::onChromeReady);
 	ofAddListener(chromes.eventPixelsReady, this, &ofApp::onPixelsReady);
 
-	chromes.setup(numInstances, chosenBin, "127.0.0.1", headless);
+	chromes.setup(numInstances, chosenBin, "127.0.0.1", 15000, headless);
 
 	urls = {
 		"http://arstechnica.com",
@@ -97,6 +97,7 @@ void ofApp::draw(){
 			ofRectangle texR = ofRectangle(0,0,tex.getWidth(), tex.getHeight());
 			texR.scaleTo(paddedFrame, OF_ASPECT_RATIO_KEEP, OF_ALIGN_HORZ_CENTER, OF_ALIGN_VERT_TOP);
 			tex.draw(texR);
+			ofDrawBitmapString(loadedUrls[it.first], texR.x + 4 - 1, texR.getTop() - 5);
 		}
 		xx += ceil(frame.width);
 		if(xx >= rect.x + rect.width){
@@ -120,7 +121,7 @@ void ofApp::onChromeReady(ofxChromePool& who){
 
 void ofApp::onPixelsReady(ofxChrome::PagePixels& data){
 
-	ofLogNotice() << "ofxChrome pixels ready : " << data.pixels.getWidth() << " x " << data.pixels.getHeight();
+	ofLogNotice("ofxChrome") << "pixels ready : " << data.pixels.getWidth() << " x " << data.pixels.getHeight();
 
 	ofDisableArbTex();
 	textures[data.who].clear();
@@ -128,6 +129,8 @@ void ofApp::onPixelsReady(ofxChrome::PagePixels& data){
 	textures[data.who].generateMipmap();
 	textures[data.who].enableMipmap();
 	textures[data.who].setTextureMinMagFilter(GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR);
+
+	loadedUrls[data.who] = data.url;
 
 	//load another one
 	string url = urls[(int)floor(ofRandom(urls.size()))];
