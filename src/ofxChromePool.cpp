@@ -25,13 +25,12 @@ void ofxChromePool::setup(int numChromeInstances, string chromeBinaryPath, strin
 	chromeHeadless = headless;
 	chromeIP = chromeRemoteDebugIP;
 	chromePath = chromeBinaryPath;
-	numChromeInstances = MAX(1, numChromeInstances);
+	numInstances =  MAX(1, numChromeInstances);
  	basePort = MAX(1001,basePort);
 
-	port = basePort;
-	for(int i = 0; i < numChromeInstances; i++){
+	port = basePort + ofRandom(100);
+	for(int i = 0; i < numInstances; i++){
 		newChrome();
-		port += 2;
 	}
 }
 
@@ -42,7 +41,10 @@ void ofxChromePool::newChrome(){
 	ofAddListener(c->eventChromeSetupFailed, this, &ofxChromePool::onChromeSetupFailed);
 	ofAddListener(c->eventPixelsReady, this, &ofxChromePool::onPixelsReady);
 	c->setup(chromePath, chromeIP, port, chromeHeadless);
+	port++;
+	mutex.lock();
 	chromes[c] = ChromeState();
+	mutex.unlock();
 }
 
 void ofxChromePool::onChromeReady(ofxChrome& who){
@@ -55,9 +57,10 @@ void ofxChromePool::onChromeSetupFailed(ofxChrome& who){
 	ofLogError("ofxChromePool") << "chrome setup failed! making a new one?";
 	chromes[&who].setup = false;
 	chromes[&who].busy = false;
-
 	delete &who;
+	mutex.lock();
 	chromes.erase(chromes.find(&who));
+	mutex.unlock();
 
 	newChrome();
 }
@@ -70,8 +73,22 @@ void ofxChromePool::onPixelsReady(ofxChrome::PagePixels& data){
 
 void ofxChromePool::update(float dt){
 
-	for(auto & it : chromes){
+	mutex.lock();
+	map<ofxChrome*, ChromeState> chromesCopy = chromes;
+	mutex.unlock();
+
+	for(auto & it : chromesCopy){
 		it.first->update(dt);
+	}
+
+	if(!notifiedSetup){
+		int nSetup = 0;
+		for(auto & it : chromesCopy){
+			if(it.second.setup) nSetup++;
+		}
+		if(nSetup == numInstances){
+			ofNotifyEvent(eventChromeReady, *this, this);
+		}
 	}
 }
 
@@ -89,11 +106,13 @@ void ofxChromePool::drawStatus(int x, int y){
 }
 
 
-bool ofxChromePool::loadPage(string url, bool fullPage){
+bool ofxChromePool::loadPage(string url, ofVec2f winSize, float timeout, bool fullPage){
 
 	auto c = getAvaialbleChrome();
 	if(c){
 		chromes[c].busy = true;
+		c->setLoadTimeout(timeout);
+		c->setWindowSize(winSize.x, winSize.y);
 		c->loadPage(url, fullPage);
 	}else{
 		return false;
@@ -101,11 +120,13 @@ bool ofxChromePool::loadPage(string url, bool fullPage){
 }
 
 
-bool ofxChromePool::loadHTML(const string & html, bool fullPage){
+bool ofxChromePool::loadHTML(const string & html, ofVec2f winSize, float timeout, bool fullPage){
 
 	auto c = getAvaialbleChrome();
 	if(c){
 		chromes[c].busy = true;
+		c->setLoadTimeout(timeout);
+		c->setWindowSize(winSize.x, winSize.y);
 		c->loadHTML(html, fullPage);
 	}else{
 		return false;

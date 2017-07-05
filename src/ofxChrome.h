@@ -33,11 +33,14 @@ public:
 
 	//bool setTransparentBackground(bool trans); //TODO!
 	bool setWindowSize(int w, int h);
+	void setLoadTimeout(float sec); //page is considered loaded when Chrome sends the "Page.loadEventFired" event - but sometimes its never sent!
+									//we timeout waiting for this event n seconds
 
 	struct PagePixels{
 		ofPixels pixels;
 		ofxChrome * who;
 		string url;
+		float loadDuration;
 	};
 
 	ofFastEvent<ofxChrome> eventChromeSetupFailed; 	//
@@ -105,11 +108,13 @@ protected:
 		string html;
 		ofVec2f browserWinSize;
 		bool fullPage;
+		float timeout;
 	};
 
 	struct AsyncOutput{
 		ofPixels pixels;
 		string url;
+		float loadDuration;
 	};
 
 	struct LoadPageInfo{
@@ -139,6 +144,8 @@ protected:
 		ofPixels pixels;
 		bool isCustomHtml;
 
+		float startTime;
+
 		Transaction(){readyToDelete = true; DomRootNodeID = bodyNodeID = -1;}
 	};
 
@@ -150,5 +157,6 @@ protected:
 	void browserFetch(const string & url, const string & html, bool fullpage);
 
 	static int numInstances;
+	float loadTimeOut = 10;
 };
 

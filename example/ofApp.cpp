@@ -1,6 +1,6 @@
 #include "ofApp.h"
 
-int numInstances = 4;
+int numInstances = 16;
 
 void ofApp::setup(){
 
@@ -39,18 +39,18 @@ void ofApp::setup(){
 		"http://www.sciencespacerobots.com",
 		"http://google.com",
 		"https://www.fastcompany.com",
-		//sites with animations
-		"https://www.google.com/chrome/index.html",
-		"https://www.apple.com/imac-pro/",
-		"https://www.apple.com/imac/",
-		"https://www.apple.com/macbook/",
-		"https://www.apple.com/macbook-air/",
-		"https://www.apple.com/mac-pro/",
+//sites with post-load animations
+//		"https://www.google.com/chrome/index.html",
+//		"https://www.apple.com/imac-pro/",
+//		"https://www.apple.com/imac/",
+//		"https://www.apple.com/macbook/",
+//		"https://www.apple.com/macbook-air/",
+//		"https://www.apple.com/mac-pro/",
 
 	};
 
 	#ifdef TIME_PROFILE
-	TIME_SAMPLE_ENABLE();
+	TIME_SAMPLE_DISABLE();
 	#endif
 }
 
@@ -97,7 +97,7 @@ void ofApp::draw(){
 			ofRectangle texR = ofRectangle(0,0,tex.getWidth(), tex.getHeight());
 			texR.scaleTo(paddedFrame, OF_ASPECT_RATIO_KEEP, OF_ALIGN_HORZ_CENTER, OF_ALIGN_VERT_TOP);
 			tex.draw(texR);
-			ofDrawBitmapString(loadedUrls[it.first], texR.x + 4 - 1, texR.getTop() - 5);
+			ofDrawBitmapString(loadedUrls[it.first], texR.x + 4 - 1, texR.getBottom() + 14);
 		}
 		xx += ceil(frame.width);
 		if(xx >= rect.x + rect.width){
@@ -112,9 +112,12 @@ void ofApp::draw(){
 
 void ofApp::onChromeReady(ofxChromePool& who){
 	int numToLoad = chromes.getNumInstances();
+
+	ofVec2f winSize = ofVec2f(ofRandom(800, 1400), ofRandom(600, 1500));
+
 	for(int i = 0; i < numToLoad; i++){
 		string url = urls[(int)floor(ofRandom(urls.size()))];
-		chromes.loadPage(url);
+		chromes.loadPage(url, winSize);
 	}
 }
 
@@ -134,37 +137,40 @@ void ofApp::onPixelsReady(ofxChrome::PagePixels& data){
 
 	//load another one
 	string url = urls[(int)floor(ofRandom(urls.size()))];
-	chromes.loadPage(url); //schedule another load
+
+	ofVec2f winSize = ofVec2f(ofRandom(800, 1400), ofRandom(600, 1500));
+	chromes.loadPage(url, winSize); //schedule another load
 
 }
 
 
 void ofApp::keyPressed(int key){
 
+	ofVec2f winSize = ofVec2f(ofRandom(800, 1400), ofRandom(600, 1500));
 
 	if(key=='1'){
-		chromes.loadPage("http://uri.cat", true);
+		chromes.loadPage("http://uri.cat", winSize, 10, true);
 	}
 
 	if(key=='2'){
-		chromes.loadPage("http://github.com", false);
+		chromes.loadPage("http://github.com", winSize);
 	}
 
 	if(key=='3'){
-		chromes.loadPage("http://apple.com", false);
+		chromes.loadPage("http://apple.com", winSize);
 	}
 
 	if(key=='4'){
-		chromes.loadPage("https://www.youtube.com", false);
+		chromes.loadPage("https://www.youtube.com", winSize);
 	}
 
 	if(key=='5'){
-		chromes.loadPage("http://uri.cat/blank.html", false);
+		chromes.loadPage("http://yahoo.com/", winSize);
 	}
 
 	if(key=='6'){
 		string html = "<html><body>It's this time in OpenFrameworks: " + ofGetTimestampString() +  "</body></html>";
-		chromes.loadHTML(html, true);
+		chromes.loadHTML(html, winSize);
 	}
 
 }

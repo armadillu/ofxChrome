@@ -94,7 +94,7 @@ void ofxChrome::openWebSocket(){
 	string jsonStr;
 	string wsRequestPath;
 
-	while(!ok && numTry < 10){ //lets find a tab in chrome to connect a WS to
+	while(!ok && numTry < 3){ //lets find a tab in chrome to connect a WS to
 		string url = "http://" + chromeAddress + ":" + chromePort + "/json";
 		ofLogNotice("ofxChrome") << "trying to connect to Chrome: " << url;
 
@@ -183,6 +183,9 @@ void ofxChrome::update(float dt){
 	chromeProcess.update();
 }
 
+void ofxChrome::setLoadTimeout(float sec){
+	loadTimeOut = sec;
+}
 
 void ofxChrome::browserFetch(const string & url, const string &  html, bool fullPage){
 
@@ -195,12 +198,14 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 		t->type = LOAD_PAGE;
 		t->ID = msgID;
 		t->isCustomHtml = url.size() == 0;
+		t->startTime = ofGetElapsedTimef();
 
 		AsyncInput input;
 			input.url = url;
 			input.html = html;
 			input.browserWinSize = browserWinSize;
 			input.fullPage = fullPage;
+			input.timeout = loadTimeOut;
 
 		currentTransaction = t;
 		msgID += 50;
@@ -242,8 +247,12 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 			t->loadingInfo.state = LOADING_PAGE;
 			t->websocket->send(browserMsg);
 			internalID++;
-			t->semaphore.wait_for(lock, std::chrono::seconds(30));	//at this point, we are waiting for Chrome to reply - so when the websocket gets data, will check for the
+			auto timeout = t->semaphore.wait_for(lock, std::chrono::milliseconds((int)(1000 * in.timeout)) );	//at this point, we are waiting for Chrome to reply - so when the websocket gets data, will check for the
 																	//transaction ID and notify the semaphhore when to proceed
+
+			if(timeout == std::cv_status::timeout){
+				ofLogWarning("ofxChrome") << "Time Out waiting for page load! (" << in.timeout << " sec.)" ;
+			}
 
 			if(in.fullPage){
 				string getDOM = "{\"id\":" + ofToString(t->ID + internalID) + ",\"method\":\"DOM.getDocument\"}";
@@ -300,6 +309,7 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 			AsyncOutput r;
 			r.pixels = t->pixels;
 			r.url = in.url;
+			r.loadDuration = ofGetElapsedTimef() - t->startTime;
 			return r;
 		};
 
@@ -311,8 +321,9 @@ void ofxChrome::browserFetch(const string & url, const string &  html, bool full
 			pp.pixels = res.pixels;
 			pp.url = res.url;
 			pp.who = this;
+			pp.loadDuration = res.loadDuration;
 			ofNotifyEvent(eventPixelsReady, pp, this);
-			ofLogNotice("ofxChrome") << "page ready \"" << pp.url << "\"";
+			ofLogNotice("ofxChrome") << "page ready \"" << pp.url << "\" - took " << pp.loadDuration << "sec.";
 		};
 
 		t->async.startTask(asyncFunc, input, asyncResultReadyFunc);
@@ -395,7 +406,7 @@ void ofxChrome::onIdle( ofxLibwebsockets::Event& args ){
 
 
 void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
-	//ofLogNotice("ofxChrome") << "ofxLibwebsockets got message: " << ofToString(ofGetElapsedTimef()) << " - " << args.message.substr(0, MIN(100,args.message.size()) );
+	ofLogNotice("ofxChrome") << "ofxLibwebsockets got message: " << ofToString(ofGetElapsedTimef()) << " - " << args.message.substr(0, MIN(100,args.message.size()) );
 
 	Json::Reader reader;
 	Json::Value json;
@@ -459,6 +470,8 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 							istringstream istr(json["result"]["data"].asString());
 							Poco::Base64Decoder decoder(istr);
 							ofLoadImage(currentTransaction->pixels, ofBuffer(decoder));
+						}else{
+							ofLogError("ofxChrome") << "null data?";
 						}
 						currentTransaction->semaphore.notify_all();
 					}
@@ -471,6 +484,7 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 			string method = json["method"].asString();
 			//bool frameLoading = method == "Page.frameStartedLoading";
 			//bool frameStoppedLoading = method == "Page.frameStoppedLoading";
+
 			if(currentTransaction){
 				if(currentTransaction->type == LOAD_PAGE){
 					if(currentTransaction->loadingInfo.state == LOADING_PAGE){
@@ -487,8 +501,10 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 							}
 
 							//if load event is done, and all frames that were loading are loaded, we are done
-							if(currentTransaction->loadingInfo.loadEventFired &&
-							   currentTransaction->loadingInfo.numFramesLoaded == currentTransaction->loadingInfo.numFramesLoaded){
+							if(currentTransaction->loadingInfo.loadEventFired
+							   //&&
+							   //currentTransaction->loadingInfo.numFramesLoaded == currentTransaction->loadingInfo.numFramesLoaded
+							   ){
 								currentTransaction->semaphore.notify_all(); //page is loaded, carry on the LOAD_PAGE transaction
 							}
 						}

@@ -27,9 +27,8 @@ public:
 	ofFastEvent<ofxChrome> 				eventChromeSetupFailed; 	//
 	ofFastEvent<ofxChrome::PagePixels> 	eventPixelsReady;
 
-	bool loadPage(string url, bool fullPage = false); //if fullPage==true, it will return the whole page height vs only the only visible part that would fit in the browser window
-	bool loadHTML(const string & html, bool fullPage = false);
-
+	bool loadPage(string url, ofVec2f winSize, float timeout = 10.0f, bool fullPage = false); //if fullPage==true, it will return the whole page height vs only the only visible part that would fit in the browser window
+	bool loadHTML(const string & html, ofVec2f winSize, float timeout = 10.0f, bool fullPage = false);
 
 	void onPixelsReady(ofxChrome::PagePixels& data);
 	void onChromeReady(ofxChrome&);
@@ -50,7 +49,12 @@ protected:
 	bool chromeHeadless;
 	string chromeIP;
 	string chromePath;
+	int numInstances;
 
 	int port; //currently used port (incs)
+
+	std::mutex mutex;
+
+	bool notifiedSetup = false;
 };
 
