@@ -1,0 +1,29 @@
+* CLI options
+	http://peter.sh/experiments/chromium-command-line-switches/
+	URL-based functionality "chrome://about/" in chrome
+
+
+* Usage as a C++ library
+	https://chromium.googlesource.com/chromium/src/+/lkgr/headless/README.md
+
+* C++ bindings?
+	https://docs.google.com/document/d/1rlqcp8nk-ZQvldNJWdbaMbwfDbJoOXvahPCDoPGOwhQ/edit?pref=2&pli=1#
+
+* websocket api
+	https://www.igvita.com/2012/04/09/driving-google-chrome-via-websocket-api/
+
+* cef like future lines?
+	https://groups.google.com/a/chromium.org/forum/#!topic/headless-dev/a4pGtG5CYjg
+
+* devtools API
+	https://chromedevtools.github.io/devtools-protocol/tot/
+	
+* Using Node to get full page screenshots 
+	https://medium.com/@dschnr/using-headless-chrome-as-an-automated-screenshot-tool-4b07dffba79a
+
+* getting list of pages
+	https://stackoverflow.com/questions/28430479/using-google-chrome-remote-debugging-protocol
+
+
+$ /Users/oriol/Desktop/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary  --headless --disable-gpu  --window-size=1920,1080  --screenshot http://uri.cat  
+
