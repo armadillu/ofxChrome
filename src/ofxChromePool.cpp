@@ -129,7 +129,7 @@ bool ofxChromePool::loadHTML(const string & html, ofVec2f winSize, float timeout
 		c->setLoadTimeout(timeout);
 		c->setWindowSize(winSize.x, winSize.y);
 		c->loadHTML(html, fullPage);
-		return true
+		return true;
 	}else{
 		return false;
 	}
