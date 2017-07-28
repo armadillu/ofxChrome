@@ -1,5 +1,7 @@
 # ofxChrome
 
+[![Build Status](https://travis-ci.org/armadillu/ofxChrome.svg?branch=master)](https://travis-ci.org/armadillu/ofxChrome)
+
 This attempts to run the Google Chrome web browser in [headless mode](https://developers.google.com/web/updates/2017/04/headless-chrome) and controlling it through their [DevTools](https://chromedevtools.github.io/devtools-protocol/tot/). This implies launching Chrome with the debugger enabled (```--remote-debugging-port=9222```), sending an http request to ```http://chrome-ip:9222/json``` to get a list of open pages to get a WebSocket @ to connect to, and connecting to that WebSocket to take control of the browser.
 
 One of the features I'm shooting for is being able to get "snapshots" from the browser.
