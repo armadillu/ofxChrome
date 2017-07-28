@@ -339,6 +339,7 @@ bool ofxChrome::loadPage(string url, bool fullPage){
 
 	ofLogNotice("ofxChrome") << "loadPage(\"" << url << "\");";
 	browserFetch(url, "", fullPage);
+	return true
 }
 
 
