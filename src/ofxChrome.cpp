@@ -352,6 +352,7 @@ void ofxChrome::loadHTML(const string & html, bool fullPage ){
 bool ofxChrome::setWindowSize(int w, int h){
 	browserWinSize.x = w;
 	browserWinSize.y = h;
+	return true;
 }
 
 
