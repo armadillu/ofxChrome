@@ -1,5 +1,4 @@
 ofxLibwebsockets
-ofxJSON
 ofxExternalProcess
 ofxTimeMeasurements
 ofxPoco
