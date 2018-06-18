@@ -23,10 +23,10 @@ ofxChrome::~ofxChrome(){
 	chromeProcess.kill();
 	chromeProcess.join();
 	ofLogNotice("ofxChrome") << "done waiting it seems...";
-	while(chromeProcess.isThreadRunning()){
-		ofLogWarning("ofxChrome") << "still running?";
-		ofSleepMillis(5);
-	}
+//	while(chromeProcess.isThreadRunning()){
+//		ofLogWarning("ofxChrome") << "still running?";
+//		ofSleepMillis(5);
+//	}
 	ws.close();
 }
 
