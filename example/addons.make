@@ -1,6 +1,6 @@
+ofxPoco
 ofxLibwebsockets
 ofxExternalProcess
 ofxTimeMeasurements
-ofxPoco
 ofxJSON
 ofxChrome
