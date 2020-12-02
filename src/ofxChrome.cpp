@@ -11,6 +11,7 @@
 #include "Poco/StreamCopier.h"
 #include <mutex>
 #include <condition_variable>
+#include "json.h"
 
 int ofxChrome::numInstances = 0;
 
