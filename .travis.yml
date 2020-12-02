@@ -19,16 +19,12 @@ matrix:
   # fully specify builds, include can't dynamically expand matrix entries
   # relative order of sudo and env is important so that addons: is recognized
 
-
-#branches: #only CI on the testing branch
-#  only:
-#  - feature/ci
-
 # Linux 64bit, OF master
   - os: linux
     dist: trusty
     sudo: required
-    env: TARGET="linux64" OF_BRANCH="master"
+    env: TARGET="linux64" OF_BRANCH="main"
+    cache: ccache
     addons:
       apt:
         sources:
@@ -54,9 +50,10 @@ matrix:
 
 # OSX, OF master
   - os: osx
-    osx_image: xcode8
+    osx_image: xcode9.4
     compiler: clang
-    env: TARGET="osx" OF_BRANCH="master"
+    env: TARGET="osx" OF_BRANCH="main"
+    cache: ccache
 
 # OSX, OF stable:  Not supported yet
 #  - os: osx
@@ -186,19 +183,26 @@ matrix:
 #        - ~/android-ndk-r12b
 
 
-  # Exclude the default build that would otherwise be generated
-  # see https://github.com/travis-ci/travis-ci/issues/1228
-  exclude:
-    - compiler: gcc
 
 install:
   - cd ~
-  - git clone --depth=1 --branch=$OF_BRANCH https://github.com/openframeworks/openFrameworks
+  - git clone --depth=1 --branch=feature/uri.cat https://github.com/armadillu/openFrameworks
   - cd openFrameworks
-  - scripts/ci/addons/install.sh
+  - travis_wait 45 scripts/ci/addons/install.sh
 
 script:
-  - scripts/ci/addons/build.sh
+  - ccache -z
+  - ccache -s
+  - if [ "$TARGET" = "osx" ]; then
+      CXX="ccache clang++";
+      CC="ccache clang";
+    else
+      CXX="ccache g++";
+      CC="ccache gcc";
+    fi
+  - travis_wait 30 scripts/ci/addons/build.sh
+  - ccache -s
+
 
 git:
   depth: 10
