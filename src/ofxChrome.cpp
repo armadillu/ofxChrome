@@ -12,6 +12,8 @@
 #include <mutex>
 #include <condition_variable>
 
+using namespace std;
+
 int ofxChrome::numInstances = 0;
 
 ofxChrome::ofxChrome(){
