@@ -11,7 +11,6 @@
 #include "Poco/StreamCopier.h"
 #include <mutex>
 #include <condition_variable>
-#include "json.h"
 
 int ofxChrome::numInstances = 0;
 
@@ -114,16 +113,13 @@ void ofxChrome::openWebSocket(){
 			jsonStr = res.data.getData();
 			//ofLogNotice() << jsonStr;
 
-			Json::Reader reader;
-			Json::Value json;
-
-			reader.parse(jsonStr, json, false);
+			ofJson json = ofJson::parse(jsonStr);
 			string websocketURL;
 
-			for(auto & it : json){
-				if(it["type"].asString() == "page"){
-					if(it["title"].asString() == "about:blank"){
-						websocketURL = it["webSocketDebuggerUrl"].asString();
+			for (auto it=json.begin(); it!=json.end(); it++) {
+				if(it.value()["type"] == "page"){
+					if(it.value()["title"] == "about:blank"){
+						websocketURL = it.value()["webSocketDebuggerUrl"];
 					}
 				}
 			}
@@ -411,18 +407,18 @@ void ofxChrome::onIdle( ofxLibwebsockets::Event& args ){
 void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 	ofLogNotice("ofxChrome") << "ofxLibwebsockets got message: " << ofToString(ofGetElapsedTimef()) << " - " << args.message.substr(0, MIN(100,args.message.size()) );
 
-	Json::Reader reader;
-	Json::Value json;
-	bool ok = reader.parse(args.message, json, false);
+	ofJson json = ofJson::parse(args.message);
+	bool ok = !json.is_null();
+	string websocketURL;
 
 	if(ok){
 
-		bool msgHasID = json["id"].isInt();
-		bool msgHasMethod = json["method"].isString();
+		bool msgHasID = json.contains("id");
+		bool msgHasMethod = json.contains("method");
 
 		if(msgHasID){ //msg refers to a transaction
 
-			int thisID = json["id"].asInt();
+			int thisID = json["id"];
 
 			if(currentTransaction == nullptr){
 				//ofLogError("ofxChrome") << "cant find a transaction for this ID? " << thisID;
@@ -439,23 +435,23 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 					}
 
 					if(currentTransaction->loadingInfo.state == REQUESTING_DOM){
-						if(!json["result"]["root"]["nodeId"].isNull()){
-							currentTransaction->DomRootNodeID = json["result"]["root"]["nodeId"].asInt();
+						if(json.contains("result") && json["result"].contains("root") && json["result"]["root"].contains("nodeId")){
+							currentTransaction->DomRootNodeID = json["result"]["root"]["nodeId"];
 						}else ofLogError("ofxChrome") << "cant get DOM?";
 						currentTransaction->semaphore.notify_all(); //dom is ready
 					}
 
 					if(currentTransaction->loadingInfo.state == REQUESTING_BODY){
-						if(!json["result"]["nodeId"].isNull()){
-							currentTransaction->bodyNodeID = json["result"]["nodeId"].asInt();
+						if(json.contains("result") && json["result"].contains("nodeId")){
+							currentTransaction->bodyNodeID = json["result"]["nodeId"];
 						}else ofLogError("ofxChrome") << "cant get BODY?";
 						currentTransaction->semaphore.notify_all();
 					}
 
 					if(currentTransaction->loadingInfo.state == QUERYING_FRAME_SIZE){
-						if(!json["result"]["model"]["width"].isNull()){
-							currentTransaction->bodySize.x = MAX(json["result"]["model"]["width"].asInt(), browserWinSize.x);
-							currentTransaction->bodySize.y = MAX(json["result"]["model"]["height"].asInt(), browserWinSize.y);
+						if(json.contains("result") && json["result"].contains("model") && json["result"]["model"].contains("width")){
+							currentTransaction->bodySize.x = MAX((int)json["result"]["model"]["width"], browserWinSize.x);
+							currentTransaction->bodySize.y = MAX((int)json["result"]["model"]["height"], browserWinSize.y);
 						}else ofLogError("ofxChrome") << "cant get BODY SIZE?";
 						currentTransaction->semaphore.notify_all();
 					}
@@ -469,8 +465,8 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 
 					if(currentTransaction->loadingInfo.state == GET_PIXEL_DATA){
 						//decode base64 data
-						if(!json["result"]["data"].isNull()){
-							istringstream istr(json["result"]["data"].asString());
+						if(json.contains("result") && json["result"].contains("data")){
+							std::istringstream istr((string)json["result"]["data"]);
 							Poco::Base64Decoder decoder(istr);
 							ofLoadImage(currentTransaction->pixels, ofBuffer(decoder));
 						}else{
@@ -484,7 +480,7 @@ void ofxChrome::onMessage( ofxLibwebsockets::Event& args ){
 
 		if(msgHasMethod){ //msg most likely refers to a "method"
 
-			string method = json["method"].asString();
+			string method = json["method"];
 			//bool frameLoading = method == "Page.frameStartedLoading";
 			//bool frameStoppedLoading = method == "Page.frameStoppedLoading";
 
