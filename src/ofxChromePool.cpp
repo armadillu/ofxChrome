@@ -8,6 +8,9 @@
 
 #include "ofxChromePool.h"
 
+
+using namespace std;
+
 ofxChromePool::ofxChromePool(){
 }
 

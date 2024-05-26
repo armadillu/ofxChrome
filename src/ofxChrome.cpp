@@ -13,6 +13,8 @@
 #include <condition_variable>
 #include "json.h"
 
+using namespace std;
+
 int ofxChrome::numInstances = 0;
 
 ofxChrome::ofxChrome(){
